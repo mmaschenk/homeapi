@@ -1,0 +1,37 @@
+version: 1
+formatters:
+  simple:
+    format: '%(name)s:%(asctime)s:%(module)s:%(levelname)s: %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: simple
+    stream: ext://sys.stdout
+  error:
+    class: logging.FileHandler
+    level: DEBUG
+    formatter: simple
+    filename: error.log
+  standard:
+    class: logging.FileHandler
+    level: DEBUG
+    formatter: simple
+    filename: homeapi.log
+loggers:
+  pika:
+    level: WARN
+  mymain:
+    level: DEBUG
+  simpleExample:
+    level: DEBUG
+    handlers: [console]
+    propagate: no
+  error:
+    level: DEBUG
+    handlers: [error]
+    propagate: no
+root:
+  level: DEBUG
+  handlers: [standard, console]

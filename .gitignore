@@ -1,0 +1,4 @@
+__pycache__
+.venv
+homeapi.log
+error.log
