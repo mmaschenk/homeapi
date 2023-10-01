@@ -5,7 +5,12 @@ import yaml
 import logging
 import logging.config
 
-with open("logging.yaml") as logyaml:
+import os
+from dotenv import load_dotenv
+load_dotenv()
+loggingconfig = os.getenv("LOGCONFIG")
+
+with open(loggingconfig) as logyaml:
     logconfig = yaml.safe_load(logyaml)
 logging.config.dictConfig(logconfig)
 
@@ -21,7 +26,7 @@ from apiflask.fields import Integer, String
 from apiflask.schemas import Schema
 import secrets
 import importlib
-import os
+
 
 from apispec import BasePlugin
 from rabbitlistener import RabbitListener
@@ -174,7 +179,10 @@ def setup_app(app, settings):
     startcachehandler(settings)
     return app
 
-with open('cacher.yaml',"r") as settingsfile:
+
+cacheconfig = os.getenv("CACHECONFIG")
+
+with open(cacheconfig,"r") as settingsfile:
     settings = yaml.safe_load(settingsfile)
 app.logger.debug(f"settings={settings}")
     

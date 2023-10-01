@@ -26,7 +26,7 @@ sequenceDiagram
 
     rect rgba(120, 120, 120, 0.1)
         loop for each listener_thread
-            RabbitListener ->> listener_thread: start thread that calls read_events
+            RabbitListener ->> listener_thread: call readevents()
             activate listener_thread
             note over listener_thread: connect to rabbitmq
 
