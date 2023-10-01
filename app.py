@@ -47,6 +47,9 @@ from cacher import startcachehandler, getentry, listcategories, listentries
 # logger.error("Notmymain module error")
 
 mastertoken = os.getenv("MASTERTOKEN")
+openapi = os.getenv("OPENAPI") == "1"
+
+print(f"Openapi = {openapi}")
 
 class QueuedAPIFlask(APIFlask):
     def run(self, host: str | None = None, port: int | None = None, debug: bool | None = None, load_dotenv: bool = True, **options) -> None:
@@ -54,7 +57,7 @@ class QueuedAPIFlask(APIFlask):
         self.a = "Dinges"
         return super().run(host, port, debug, load_dotenv, **options)
 
-app = APIFlask(__name__)
+app = APIFlask(__name__, title="My API", version="1.0", openapi=openapi)
 app.secret_key = secrets.token_bytes(32)
 
 auth = HTTPTokenAuth(scheme='bearer')
