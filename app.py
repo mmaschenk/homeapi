@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 loggingconfig = os.getenv("LOGCONFIG")
 
+print(f"Starting configuring logging using: {loggingconfig}")
 with open(loggingconfig) as logyaml:
     logconfig = yaml.safe_load(logyaml)
 logging.config.dictConfig(logconfig)
@@ -178,7 +179,6 @@ def setup_app(app, settings):
     generategettermappings(rabbitlistener)
     startcachehandler(settings)
     return app
-
 
 cacheconfig = os.getenv("CACHECONFIG")
 
