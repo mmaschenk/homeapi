@@ -1,7 +1,7 @@
 version: 1
 formatters:
   simple:
-    format: '%(name)s:%(asctime)s:%(module)s:%(levelname)s: %(message)s'
+    format: '%(name)s:%(asctime)s:%(module)s:%(lineno)d:%(levelname)s: %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
 handlers:
   console:
@@ -19,6 +19,7 @@ handlers:
     level: DEBUG
     formatter: simple
     filename: homeapi.log
+    mode: w
 loggers:
   pika:
     level: WARN

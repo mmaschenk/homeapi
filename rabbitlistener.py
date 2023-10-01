@@ -15,21 +15,41 @@ class QueueManager(object):
         logger.debug(f"Created queuemanager with {kwargs}")
         self._queue = queue
         self._settings = settings
+        
 
     def getsettings(self):
         return self._settings
-
+    
+    
 class Handler(object):
-    def __init__(self, id, logger, exchange=None):
+    def __init__(self, id, logger, settings, exchange=None):
         self.id = id
         self.logger = logger
         self.exchange = exchange
+        self.settings = settings
+        self._channel = None
 
     def handlemessage(self, ch, method, properties, body):
         self.logger.info(f"Dropping {body}")
         ch.basic_ack(delivery_tag = method.delivery_tag)
 
+    def openchannel(self):
+        if not self._channel:
+            mqrabbit_credentials = pika.PlainCredentials(self.settings['MQRABBIT_USER'], self.settings['MQRABBIT_PASSWORD'])
+            mqparameters = pika.ConnectionParameters(
+                host=self.settings['MQRABBIT_HOST'],
+                virtual_host=self.settings['MQRABBIT_VHOST'],
+                port=self.settings['MQRABBIT_PORT'],
+                credentials=mqrabbit_credentials)
+            mqconnection = pika.BlockingConnection(mqparameters)
+            self.channel = mqconnection.channel()
+        return self.channel
+
 class LEDBoardHandler(Handler):
+
+    def __init__(self, id, logger, settings, exchange=None):
+        super().__init__(id, logger, settings, exchange)
+
     def handlemessage(self, ch, method, properties, body):
         self.logger.info(f"LEDBoard handler received {body}")
 
@@ -47,11 +67,22 @@ class LEDBoardHandler(Handler):
 
         self.logger.info(f" [{self.id}] Done")
 
-    def handlepost(self, entry, value ):
-        self.logger.info(f"Handling post value for {entry}: {value}")
+    def post2exchange(self, value ):
+        message = { 'type': 'active', 'value': value }
+        self.logger.info(f"Posting to exchange: {value}")
+        self.openchannel().basic_publish(
+            exchange=self.settings['MQRABBIT_EXCHANGE'], 
+            routing_key=self.settings['MQRABBIT_ROUTINGKEY'], 
+            body=json.dumps(message))
 
     def setActiveState(self, active):
         self.logger.debug(f'Setting state to {active}')
+        message = { 'type': 'active', 'value': active }
+        self.logger.info(f"Posting to exchange: {message}")
+        self.openchannel().basic_publish(
+            exchange=self.settings['MQRABBIT_EXCHANGE'], 
+            routing_key=self.settings['MQRABBIT_ROUTINGKEY'], 
+            body=json.dumps(message))
 
 
 class RFC8428(Handler):
@@ -101,20 +132,23 @@ class RabbitListener(QueueManager):
 
         try:
             handlerclass = globals()[self._settings[queueid]['handler']]
-            logger.debug(f"handlerclass = {handlerclass}")
-            handler = handlerclass(queueid, logger)
+            logger.debug(f"Creating handlerclass = {handlerclass} with {self._settings[queueid]}")
+            handler = handlerclass(queueid, logger, settings = self._settings[queueid])
             logger.debug(f"adding handler = {handler} to queue {self.queues}")
             self.queues[queueid] = handler
             logger.debug(f"returning {handler}")
             return handler
-        except:
+        except Exception as exc:
+            logger.error(exc)
             logger.debug(f"No handler definition for {queueid}. Using self")
             self.queues[queueid] = self
             return self
 
     def getposthandler(self, queueid, mapping):
         logger.debug(f"Finding post handler for {queueid} and {mapping}")
-        h = getattr(self.getqueuehandler(queueid), mapping['handlermethod']['name'])
+
+        queuehandler = self.getqueuehandler(queueid)
+        h = getattr(queuehandler, mapping['handlermethod']['name'])
         return h
 
     def handlemessage(self, ch, method, properties, body):
@@ -167,7 +201,7 @@ class RabbitListener(QueueManager):
         if 'handler' in settings:
             handlerclass = globals()[settings['handler']]
             logger.debug(f"handlerclass = {handlerclass}")
-            handler = handlerclass(id, logger)
+            handler = handlerclass(id, logger, settings)
         else:
             handler = self
 
