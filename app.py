@@ -57,7 +57,7 @@ class QueuedAPIFlask(APIFlask):
         self.a = "Dinges"
         return super().run(host, port, debug, load_dotenv, **options)
 
-app = APIFlask(__name__, title="My API", version="1.0", openapi=openapi)
+app = APIFlask(__name__, title="My API", version="1.0", enable_openapi=openapi)
 app.secret_key = secrets.token_bytes(32)
 
 auth = HTTPTokenAuth(scheme='bearer')
