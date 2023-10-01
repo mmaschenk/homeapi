@@ -5,3 +5,4 @@ error.log
 *.ipynb
 *.dot
 cacher.yaml
+.env

@@ -11,12 +11,17 @@ logging.config.dictConfig(logconfig)
 
 # Now do other stuff
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import typing as t
 from apiflask import APIFlask, HTTPTokenAuth
 from apiflask.fields import Integer, String
 from apiflask.schemas import Schema
 import secrets
 import importlib
+import os
 
 from apispec import BasePlugin
 from rabbitlistener import RabbitListener
@@ -35,6 +40,7 @@ from cacher import startcachehandler, getentry, listcategories, listentries
 # logger.warning("Notmymain module warn")
 # logger.error("Notmymain module error")
 
+mastertoken = os.getenv("MASTERTOKEN")
 
 class QueuedAPIFlask(APIFlask):
     def run(self, host: str | None = None, port: int | None = None, debug: bool | None = None, load_dotenv: bool = True, **options) -> None:
@@ -50,7 +56,7 @@ auth = HTTPTokenAuth(scheme='bearer')
 @auth.verify_token
 def verify_token(token):
     app.logger.debug(f"Verifying token {token}")
-    if token == "SECRET":
+    if token == mastertoken:
         return "OK"
     else:
         return None
