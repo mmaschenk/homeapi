@@ -4,6 +4,7 @@
 import yaml
 import logging
 import logging.config
+import json
 
 import os
 from dotenv import load_dotenv
@@ -22,7 +23,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import typing as t
-from apiflask import APIFlask, HTTPTokenAuth
+from apiflask import APIFlask, HTTPTokenAuth, HTTPError
 from apiflask.fields import Integer, String
 from apiflask.schemas import Schema
 import secrets
@@ -62,13 +63,23 @@ app.secret_key = secrets.token_bytes(32)
 
 auth = HTTPTokenAuth(scheme='bearer')
 
+userbase = {}
+rolebase = {}
+
 @auth.verify_token
 def verify_token(token):
-    app.logger.debug(f"Verifying token {token}")
+    app.logger.debug(f"Verifying token {token} from userbase {userbase}")
+    return userbase[token]
     if token == mastertoken:
         return "OK"
     else:
         return None
+    
+@auth.get_user_roles
+def get_user_roles(user):
+    app.logger.debug(f"Getting roles for {user} from rolebase {rolebase}")
+    return rolebase[user]
+    
 
 cache = { 'test': 'value'}
 
@@ -131,12 +142,18 @@ def generategettermappings(queuemanager):
                     e = entry
 
                     @app.auth_required(auth)
+                    @auth.login_required(role='getter')
                     def getvalue():
                         f"""
                         {map['description']}
                         """
                         app.logger.debug(f"Returning mapped entry for {q} and {e}")
-                        return getentry(q, e)
+                        app.logger.debug(f"User is {auth.current_user}")
+                        entry = getentry(q, e)
+                        if entry:
+                            return entry
+                        else:
+                            raise HTTPError(404, 'No value cached')
                     return getvalue
 
                 implementation = gengetvalue(queueid, map['from'])
@@ -155,6 +172,7 @@ def generategettermappings(queuemanager):
 
                         @app.post(base)
                         @app.auth_required(auth)
+                        @auth.login_required(role='setter')
                         @app.input( thisschema, location='json')
                         def postvalue(json_data=None):
                             app.logger.debug(f"Posting value [{json_data}] to {q} and {e} ")
@@ -171,8 +189,18 @@ def generategettermappings(queuemanager):
 
                     schema = Schema.from_dict( {"json_data": Integer() })
 
+def setupusers(users):
+    app.logger.info(f"Doing users: {users}")
+    global userbase 
+    userbase = { userinfo['token']: userinfo['id'] for userinfo in users }
+
+    global rolebase
+    rolebase = { userinfo['id']: userinfo['roles'] for userinfo in users if 'roles' in userinfo }
+    app.logger.info(f"Userbase is now: {userbase}")
+
 def setup_app(app, settings):
-    app.logger.info("Starting thread")
+    setupusers(settings['users'])
+    app.logger.info("Starting queue thread")
     queue = Queue()
     app.queue = queue
     rabbitlistener = RabbitListener(queue=queue, settings=settings['rabbitqueues'])

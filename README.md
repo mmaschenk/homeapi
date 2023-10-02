@@ -57,21 +57,24 @@ flowchart TB
     classDef mqtt fill:#d1783dff;
     style box color:#fff,stroke:#000;
 
-    nagios_server[/nagios server\]:::server --> nagios_retriever[[nagios-retriever]]
+    nagios_server[/nagios server\]:::server --> nagios_retriever[["`nagios-retriever
+    *(nagios)*`"]]
 
     subgraph retriever[nagios-retriever on k8s]
         nagios_retriever:::script --> nagios_events_exchange(nagios_events_exchange):::exchange
     end
 
     subgraph filter[rgb-nagios-filter on k8s]
-        nagios_filter_queue[/nagios_filter_2023-09-17-12-22-59/]:::queue --> nagios_filter[[rgb-nagios-filter]]
+        nagios_filter_queue[/nagios_filter_2023-09-17-12-22-59/]:::queue --> nagios_filter[["`rgb-nagios-filter
+        *(matrix_command)*`"]]
         nagios_filter:::script --> rgbexchange(rgbexchange):::exchange
     end
 
     nagios_events_exchange --> nagios_filter_queue
 
     subgraph runtext[runtext on piz2]
-        matrix_queue[/matrix_queue/]:::queue --> rgbmatrix[[rgbmatrix]]:::script
+        matrix_queue[/matrix_queue/]:::queue --> rgbmatrix[["`rgbmatrix
+        *(rgbmatrix)*`"]]:::script
     end
 
     rgbexchange --> matrix_queue
@@ -84,20 +87,24 @@ flowchart TB
     end
 
     subgraph rtl433_input[ rtl433-temperature-input on k8s]
-        temperature_input[[temperature-input]]:::script --> temperature(temperature):::exchange
+        temperature_input[["`*(mqtt:mqtt)*
+        rtl433-temperature-input
+        *(temperature)*`"]]:::script --> temperature(temperature):::exchange
     end
 
     temperature --> temperature_matrix_queue:::queue
 
     subgraph temperature_matrix[ temperature-rgbmatrix-runner on k8s]
-        temperature_matrix_queue[/temperature_rgbmatrix_2023_09_18_09_45_50/]:::queue --> temperature_rgbmatrix[[temperature-rgbmatrix-runner]]:::script
+        temperature_matrix_queue[/temperature_rgbmatrix_2023_09_18_09_45_50/]:::queue --> temperature_rgbmatrix[["`temperature#8209;rgbmatrix#8209;runner
+        *(temperature)*`"]]:::script
     end
 
     temperature_rgbmatrix --> rgbexchange
 
     temperature --> temperature_elastic_queue
     subgraph elasticsearch_runner[ temperature-elasticsearch-runner on k8s]
-        temperature_elastic_queue[/temperature_elasticsearch_queue/]:::queue --> raw_elasticsearch[[temperature-elasticsearch-runner]]:::script
+        temperature_elastic_queue[/temperature_elasticsearch_queue/]:::queue --> raw_elasticsearch[["`temperature#8209;elasticsearch#8209;runner
+        *(temperature)*`"]]:::script
     end
 
 ```
