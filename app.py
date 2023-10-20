@@ -4,7 +4,6 @@
 import yaml
 import logging
 import logging.config
-import json
 
 import os
 from dotenv import load_dotenv
@@ -28,12 +27,13 @@ from apiflask.fields import Integer, String
 from apiflask.schemas import Schema
 import secrets
 import importlib
+from collections.abc import Mapping
 
 
 from apispec import BasePlugin
 from rabbitlistener import RabbitListener
 from queue import Queue
-from cacher import startcachehandler, getentry, listcategories, listentries
+from cacher import startcachehandler, getentry, listcategories, listentries, updatecache
 
 # logger = logging.getLogger("mymain")
 # logger.debug("Mymain module debug")
@@ -69,16 +69,12 @@ rolebase = {}
 @auth.verify_token
 def verify_token(token):
     app.logger.debug(f"Verifying token {token} from userbase {userbase}")
-    return userbase[token]
-    if token == mastertoken:
-        return "OK"
-    else:
-        return None
+    return userbase[token] if token in userbase else None
     
 @auth.get_user_roles
 def get_user_roles(user):
     app.logger.debug(f"Getting roles for {user} from rolebase {rolebase}")
-    return rolebase[user]
+    return rolebase[user] if user in rolebase else None
     
 
 cache = { 'test': 'value'}
@@ -198,6 +194,21 @@ def setupusers(users):
     rolebase = { userinfo['id']: userinfo['roles'] for userinfo in users if 'roles' in userinfo }
     app.logger.info(f"Userbase is now: {userbase}")
 
+def preheatcache(settings):
+    print(f"Settings is {settings}")
+    for queuetype in settings.keys():
+        print(f"queuetype: {queuetype}")
+        if isinstance(settings[queuetype], Mapping):
+            for queueid in settings[queuetype].keys():
+                print(f"queueid: {queueid}")
+                if 'preheat' in settings[queuetype][queueid]:
+                    preheatcollection = settings[queuetype][queueid]['preheat'].keys()
+                    print(f"Doing {preheatcollection}")
+                    for pentry in preheatcollection:
+                        print(f"entry = {pentry}")
+                        updatecache(categoryid=queueid, entryid=pentry, entry=settings[queuetype][queueid]['preheat'][pentry])
+
+
 def setup_app(app, settings):
     setupusers(settings['users'])
     app.logger.info("Starting queue thread")
@@ -209,6 +220,7 @@ def setup_app(app, settings):
     app.cache.start()
     generategettermappings(rabbitlistener)
     startcachehandler(settings)
+    preheatcache(settings)
     return app
 
 cacheconfig = os.getenv("CACHECONFIG")
