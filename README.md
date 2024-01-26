@@ -70,6 +70,22 @@ flowchart TB
         nagios_filter:::script --> rgbexchange(rgbexchange):::exchange
     end
 
+    temperature --> rabbitlistener_temperature
+    rgbexchange --> rabbitlistener_ledboard
+
+    subgraph homeapi_deployment[homeapi on k8s]
+        rabbitlistener_ledboard[/rabbitlistener-ledboard-34/]:::queue --> homeapi1
+
+        rabbitlistener_temperature[/rabbitlistener-temperature-id/]:::queue --> homeapi2
+
+        subgraph homeapi
+            homeapi1[["`homeapi thread
+                *(rabbitmq)*`"]]:::script
+            homeapi2[["`homeapi thread
+                *(temperature)*`"]]:::script
+        end
+    end
+
     nagios_events_exchange --> nagios_filter_queue
 
     subgraph runtext[runtext on piz2]
@@ -83,7 +99,7 @@ flowchart TB
     rtl433_scanner:::script --> rtl433_mqtt
 
     subgraph box[rtl433-scanner on k8s]
-        rtl433_scanner[[rtl433-scanner]]:::script
+        rtl433_scanner[["`rtl433-scanner`"]]:::script
     end
 
     subgraph rtl433_input[ rtl433-temperature-input on k8s]
