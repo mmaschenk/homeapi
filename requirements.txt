@@ -3,3 +3,5 @@ apiflask[yaml]
 pika
 gunicorn
 python-dotenv
+amqpstorm[management]
+termcolor

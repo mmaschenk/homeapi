@@ -1,6 +1,8 @@
 from queue import Queue, Empty
 from threading import Thread
 from logging import getLogger
+from datetime import datetime
+
 
 logger = getLogger(__name__)
 eventqueue = Queue()
@@ -10,12 +12,17 @@ map = {}
 
 _worker = None
 
+
+
 def updatecache(categoryid, entryid, entry):
     logger.debug(f"queueing {categoryid} {entryid} {entry}")
     eventqueue.put( {
         'categoryid': categoryid,
         'entryid': entryid,
-        'entry': entry
+        'entry': entry,
+        'meta': {
+            'time': datetime.now().isoformat()
+        }
     })
 
 def getentry(categoryid, entryid):
@@ -48,6 +55,9 @@ def _updatecache(entry):
     categorycache = cache[entry['categoryid']]
     categorycache[entry['entryid']] = entry['entry']
     logger.debug(f"updated cache {entry['categoryid']} {entry['entryid']}")
+    if 'meta' in entry and isinstance(categorycache[entry['entryid']], dict) :
+        categorycache[entry['entryid']]['_meta'] = entry['meta']
+        logger.info(f"added metadata: {categorycache[entry['entryid']]}")
 
 def mainloop():
     logger.info("Starting loop")
