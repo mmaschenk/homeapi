@@ -29,11 +29,10 @@ import secrets
 import importlib
 from collections.abc import Mapping
 
-
 from apispec import BasePlugin
 from rabbitlistener import RabbitListener
 from queue import Queue
-from cacher import startcachehandler, getentry, listcategories, listentries, updatecache
+from cacher import ValkeyCacher
 
 # logger = logging.getLogger("mymain")
 # logger.debug("Mymain module debug")
@@ -49,6 +48,8 @@ from cacher import startcachehandler, getentry, listcategories, listentries, upd
 
 mastertoken = os.getenv("MASTERTOKEN")
 openapi = os.getenv("OPENAPI") == "1"
+
+mycacher = None
 
 print(f"Openapi = {openapi}")
 
@@ -87,17 +88,17 @@ def readcache(key):
 @app.get("/raw/_listcategories")
 @app.auth_required(auth)
 def _listcategories():
-    return listcategories()
+    return mycacher.listcategories()
 
 @app.get("/raw/_entries/<category>")
 @app.auth_required(auth)
 def _listentries(category):
-    return listentries(category)
+    return mycacher.listentries(category)
 
 @app.get("/raw/_entry/<category>/<entry>")
 @app.auth_required(auth)
 def _getentry(category, entry):
-    value = getentry(category, entry)
+    value = mycacher.getentry(category, entry)
     return value
 
 @app.post("/cache/<key>/<value>")
@@ -145,7 +146,7 @@ def generategettermappings(queuemanager):
                         """
                         app.logger.debug(f"Returning mapped entry for {q} and {e}")
                         app.logger.debug(f"User is {auth.current_user}")
-                        entry = getentry(q, e)
+                        entry = mycacher.getentry(q, e)
                         if entry:
                             return entry
                         else:
@@ -201,25 +202,26 @@ def preheatcache(settings):
         if isinstance(settings[queuetype], Mapping):
             for queueid in settings[queuetype].keys():
                 print(f"queueid: {queueid}")
-                if 'preheat' in settings[queuetype][queueid]:
+                if isinstance(settings[queuetype][queueid], Mapping) and 'preheat' in settings[queuetype][queueid]:
                     preheatcollection = settings[queuetype][queueid]['preheat'].keys()
                     print(f"Doing {preheatcollection}")
                     for pentry in preheatcollection:
                         print(f"entry = {pentry}")
-                        updatecache(categoryid=queueid, entryid=pentry, entry=settings[queuetype][queueid]['preheat'][pentry])
+                        mycacher.updatecache(categoryid=queueid, entryid=pentry, entry=settings[queuetype][queueid]['preheat'][pentry])
 
 
 def setup_app(app, settings):
+    global mycacher
+    mycacher = ValkeyCacher(settings['valkey'])
     setupusers(settings['users'])
     app.logger.info("Starting queue thread")
     queue = Queue()
     app.queue = queue
-    rabbitlistener = RabbitListener(queue=queue, settings=settings['rabbitqueues'])
+    rabbitlistener = RabbitListener(mycacher, queue=queue, settings=settings['rabbitqueues'])
     app.listeners = {'rabbitqueues': rabbitlistener }
     app.cache = rabbitlistener
     app.cache.start()
     generategettermappings(rabbitlistener)
-    startcachehandler(settings)
     preheatcache(settings)
     return app
 

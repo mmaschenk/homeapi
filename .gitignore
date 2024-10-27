@@ -6,3 +6,7 @@ error.log
 *.dot
 cacher.yaml
 .env
+k8s
+*.png
+/rabbitmq*
+/test*
