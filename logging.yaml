@@ -34,7 +34,7 @@ loggers:
     handlers: [error]
     propagate: no
   cacher:
-    level: INFO
+    level: DEBUG
   rabbitlistener.temperature:
     level: INFO
 root:

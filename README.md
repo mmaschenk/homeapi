@@ -57,8 +57,13 @@ flowchart TB
     classDef mqtt fill:#d1783dff;
     style box color:#fff,stroke:#000;
 
+
+    
     nagios_server[/nagios server\]:::server --> nagios_retriever[["`nagios-retriever
     *(nagios)*`"]]
+
+    mk4[/mk4\]:::server --> watcher
+    mk3[/octopi @ mk3\]:::server --> watcher
 
     subgraph retriever[nagios-retriever on k8s]
         nagios_retriever:::script --> nagios_events_exchange(nagios_events_exchange):::exchange
@@ -69,6 +74,21 @@ flowchart TB
         *(matrix_command)*`"]]
         nagios_filter:::script --> rgbexchange(rgbexchange):::exchange
     end
+
+    watcher[["`prusalink-watcher
+        *(prusalink)*`"]]
+    subgraph prusalinkwatcher[prusalink-watcher on k8s]
+        watcher:::script --> prusalinkexchange(prusalink_exchange):::exchange
+
+        prusalinkexchange --> prusargbqueue[/prusargb_2024_04_21-12-06-02/]:::queue
+        
+        prusargbqueue --> prusargb[["`prusargb
+        *(prusalink)*`"]]
+        prusargb:::script
+
+        prusargb --> rgbexchange
+    end
+
 
     temperature --> rabbitlistener_temperature
     rgbexchange --> rabbitlistener_ledboard

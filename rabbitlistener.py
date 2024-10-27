@@ -4,9 +4,6 @@ import pika
 import secrets
 import json
 from logging import getLogger
-from cacher import updatecache
-
-import traceback
 
 logger = getLogger(__name__)
 
@@ -22,9 +19,10 @@ class QueueManager(object):
     
     
 class Handler(object):
-    def __init__(self, id, logger, settings, exchange=None):
+    def __init__(self, id, logger, cachemanager, settings, exchange=None):
         self.id = id
         self.logger = logger
+        self.cachemanager = cachemanager
         self.exchange = exchange
         self.settings = settings
         self._channel = None
@@ -47,8 +45,8 @@ class Handler(object):
 
 class LEDBoardHandler(Handler):
 
-    def __init__(self, id, logger, settings, exchange=None):
-        super().__init__(id, logger, settings, exchange)
+    def __init__(self, id, logger, cachemanager, settings, exchange=None):
+        super().__init__(id, logger, cachemanager, settings, exchange)
 
     def handlemessage(self, ch, method, properties, body):
         self.logger.info(f"LEDBoard handler received {body}")
@@ -63,7 +61,7 @@ class LEDBoardHandler(Handler):
             commandvalue = { 'value': payload['value'] }
             self.logger.debug(f"  [{self.id}] Command = {commandtype}. Value = {commandvalue}")
 
-            updatecache(self.id, commandtype, commandvalue)
+            self.cachemanager.updatecache(self.id, commandtype, commandvalue)
 
         self.logger.info(f" [{self.id}] Done")
 
@@ -106,12 +104,13 @@ class RFC8428(Handler):
                 entryid = f"{bn}{message['n']}"
                 message['bn'] = bn
                 self.logger.debug(f" [{self.id}] Storing at {entryid}: {message}")
-                updatecache(self.id, entryid, message)
+                self.cachemanager.updatecache(self.id, entryid, message)
         self.logger.info(f" [{self.id}] Done")
 
 class RabbitListener(QueueManager):
-    def __init__(self, **kwargs):
+    def __init__(self, cachemanager, **kwargs):
         super().__init__(**kwargs)
+        self.cachemanager = cachemanager
         self.queues = {}
 
     def start(self):
@@ -133,7 +132,7 @@ class RabbitListener(QueueManager):
         try:
             handlerclass = globals()[self._settings[queueid]['handler']]
             logger.debug(f"Creating handlerclass = {handlerclass} with {self._settings[queueid]}")
-            handler = handlerclass(queueid, logger, settings = self._settings[queueid])
+            handler = handlerclass(queueid, logger, self.cachemanager, settings = self._settings[queueid])
             logger.debug(f"adding handler = {handler} to queue {self.queues}")
             self.queues[queueid] = handler
             logger.debug(f"returning {handler}")
@@ -171,7 +170,7 @@ class RabbitListener(QueueManager):
                 entryid = f"{bn}{message['n']}"
                 message['bn'] = bn
                 logger.debug(f" [{id}] Storing at {entryid}: {message}")
-                updatecache(id, entryid, message)
+                self.cachemanager.updatecache(id, entryid, message)
         logger.info(f" [{id}] Done")
 
 
@@ -201,7 +200,7 @@ class RabbitListener(QueueManager):
         if 'handler' in settings:
             handlerclass = globals()[settings['handler']]
             logger.debug(f"handlerclass = {handlerclass}")
-            handler = handlerclass(id, logger, settings)
+            handler = handlerclass(id, logger, self.cachemanager, settings)
         else:
             handler = self
 
