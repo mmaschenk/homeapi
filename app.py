@@ -195,19 +195,24 @@ def setupusers(users):
     rolebase = { userinfo['id']: userinfo['roles'] for userinfo in users if 'roles' in userinfo }
     app.logger.info(f"Userbase is now: {userbase}")
 
-def preheatcache(settings):
-    print(f"Settings is {settings}")
+def preheatcache(app, settings):
+    app.logger.info(f"preheat: settings is {settings}")
     for queuetype in settings.keys():
-        print(f"queuetype: {queuetype}")
+        app.logger.info(f"preheat: queuetype: {queuetype}")
         if isinstance(settings[queuetype], Mapping):
             for queueid in settings[queuetype].keys():
-                print(f"queueid: {queueid}")
+                app.logger.info(f"preheat: queueid: {queueid}")
                 if isinstance(settings[queuetype][queueid], Mapping) and 'preheat' in settings[queuetype][queueid]:
                     preheatcollection = settings[queuetype][queueid]['preheat'].keys()
-                    print(f"Doing {preheatcollection}")
+                    app.logger.info(f"preheat: doing {preheatcollection}")
                     for pentry in preheatcollection:
-                        print(f"entry = {pentry}")
-                        mycacher.updatecache(categoryid=queueid, entryid=pentry, entry=settings[queuetype][queueid]['preheat'][pentry])
+                        app.logger.debug(f"preheat: entry = {pentry}")
+                        entry = mycacher.getentry(categoryid=queueid, entryid=pentry)
+                        app.logger.debug(f"preheat: entry value = {entry}")
+                        if  entry is None:
+                            mycacher.updatecache(categoryid=queueid, entryid=pentry, entry=settings[queuetype][queueid]['preheat'][pentry])
+                        else:
+                            app.logger.info(f"preheat: {queueid}/{pentry} found, not preheating")
 
 
 def setup_app(app, settings):
@@ -221,8 +226,13 @@ def setup_app(app, settings):
     app.listeners = {'rabbitqueues': rabbitlistener }
     app.cache = rabbitlistener
     app.cache.start()
+    app.logger.info("rabbitlistener queue thread started")
+    app.logger.info("Generating getter mappings")
     generategettermappings(rabbitlistener)
-    preheatcache(settings)
+    app.logger.info("Generated getter mappings")
+    app.logger.info("Preheating cache")
+    preheatcache(app, settings)
+    app.logger.info("Preheated cache")
     return app
 
 cacheconfig = os.getenv("CACHECONFIG")

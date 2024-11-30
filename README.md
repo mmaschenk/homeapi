@@ -106,6 +106,12 @@ flowchart TB
         end
     end
 
+    subgraph valkey[valkey on k8s]
+        valkey_server[/valkey server\]:::server
+    end
+
+    homeapi <--> valkey_server
+
     nagios_events_exchange --> nagios_filter_queue
 
     subgraph runtext[runtext on piz2]

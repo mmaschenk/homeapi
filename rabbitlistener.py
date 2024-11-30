@@ -209,5 +209,5 @@ class RabbitListener(QueueManager):
         channel.start_consuming()
 
         while True:
-            print(f"Sleeping {settings}")
+            logger.info(f"Sleeping {settings}")
             sleep(10)
