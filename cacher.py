@@ -58,7 +58,9 @@ class ValkeyCacher(BaseCacher):
         try:
             value = json.loads(self.valkeyconnection.get(valkeykey))
             logger.debug(f"Value found: {value}")
-            return value
+            rvalue = value['entry']
+            rvalue['_meta'] = value['meta']
+            return rvalue
         except:
             logger.debug("Value not found")
             return None
